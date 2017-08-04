@@ -46,6 +46,7 @@
                        reply:(void (^)(NSError *error))reply;
 - (void)databaseEventCount:(void (^)(int64_t count))reply;
 - (void)databaseEventsPending:(void (^)(NSArray *events))reply;
+- (void)databaseEventsWithSHA256:(NSString *)sha256 reply:(void (^)(NSArray *))reply;
 - (void)databaseRemoveEventsWithIDs:(NSArray *)ids;
 - (void)databaseRuleForBinarySHA256:(NSString *)binarySHA256
                   certificateSHA256:(NSString *)certificateSHA256
@@ -101,6 +102,12 @@
 ///
 - (void)hashBundleBinariesForEvent:(SNTStoredEvent *)event reply:(SNTBundleHashBlock)reply;
 - (void)syncBundleEvent:(SNTStoredEvent *)event relatedEvents:(NSArray<SNTStoredEvent *> *)events;
+
+///
+///  Execution Ops
+///
+- (void)recentlyBlockedEventWithSHA256:(NSString *)sha256
+                                 reply:(void (^)(SNTStoredEvent *))reply;
 
 @end
 

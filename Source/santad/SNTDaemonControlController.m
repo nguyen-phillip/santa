@@ -19,6 +19,7 @@
 #import "SNTDatabaseController.h"
 #import "SNTDriverManager.h"
 #import "SNTEventTable.h"
+#import "SNTExecutionController.h"
 #import "SNTLogging.h"
 #import "SNTNotificationQueue.h"
 #import "SNTPolicyProcessor.h"
@@ -98,6 +99,10 @@ double watchdogRAMPeak = 0;
 
 - (void)databaseEventsPending:(void (^)(NSArray *events))reply {
   reply([[SNTDatabaseController eventTable] pendingEvents]);
+}
+
+- (void)databaseEventsWithSHA256:(NSString *)sha256 reply:(void (^)(NSArray *events))reply {
+  reply([[SNTDatabaseController eventTable] eventsMatchingSHA256:sha256]);
 }
 
 - (void)databaseRemoveEventsWithIDs:(NSArray *)ids {
@@ -291,6 +296,14 @@ double watchdogRAMPeak = 0;
       [self.syncdQueue addBundleEvents:events];
     }
   }];
+}
+
+#pragma mark Execution ops
+
+- (void)recentlyBlockedEventWithSHA256:(NSString *)sha256
+                                 reply:(void (^)(SNTStoredEvent *))reply {
+  LOGI(@"#### daemon recentlyBlockedEventWithSHA256:%@", sha256);
+  reply([SNTExecutionController recentlyBlockedEventWithSHA256:sha256]);
 }
 
 @end

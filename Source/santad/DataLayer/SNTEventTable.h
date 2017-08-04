@@ -48,6 +48,13 @@
 - (NSArray *)pendingEvents;
 
 ///
+/// Retrieves all events in database with a matching sha256.
+///
+/// @return NSArray of SNTStoredEvent
+///
+- (NSArray *)eventsMatchingSHA256:(NSString *)sha256;
+
+///
 ///  Retrieves number of events in database without fetching every event.
 ///
 ///  @return Number of events in database.

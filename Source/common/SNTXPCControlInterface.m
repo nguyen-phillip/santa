@@ -32,6 +32,11 @@
       argumentIndex:0
             ofReply:YES];
 
+  [r setClasses:[NSSet setWithObjects:[NSArray class], [SNTStoredEvent class], nil]
+        forSelector:@selector(databaseEventsWithSHA256:reply:)
+      argumentIndex:0
+            ofReply:YES];
+
   [r setClasses:[NSSet setWithObjects:[NSArray class], [SNTRule class], nil]
         forSelector:@selector(databaseRuleAddRules:cleanSlate:reply:)
       argumentIndex:0

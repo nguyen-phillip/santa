@@ -204,6 +204,7 @@ static void reachabilityHandler(
 }
 
 - (void)processFCMMessage:(NSDictionary *)FCMmessage withMachineID:(NSString *)machineID {
+  // Are these multiple levels of processing really necessary?
   NSDictionary *message = [self messageFromMessageData:[self messageDataFromFCMmessage:FCMmessage]];
 
   if (!message) {
@@ -255,6 +256,14 @@ static void reachabilityHandler(
   return [FCMmessage[@"data"][@"blob"] dataUsingEncoding:NSUTF8StringEncoding];
 }
 
+- (void)logDictionary:(NSDictionary *)dict withName:(NSString *)name {
+  LOGI(@"#### --------%@--------", name);
+  for (id key in dict) {
+    LOGI(@"#### %@ : %@", key, dict[key]);
+  }
+  LOGI(@"#### ---------------------");
+}
+
 - (NSDictionary *)messageFromMessageData:(NSData *)messageData {
   NSError *error;
   NSDictionary *rawMessage = [NSJSONSerialization JSONObjectWithData:messageData
@@ -265,6 +274,8 @@ static void reachabilityHandler(
     return nil;
   }
 
+  [self logDictionary:rawMessage withName:@"FCM raw message data"];
+
   // Create a new message dropping unexpected values
   NSArray *allowedKeys = @[ kFCMActionKey, kFCMFileHashKey, kFCMFileNameKey, kFCMTargetHostIDKey ];
   NSMutableDictionary *message = [NSMutableDictionary dictionaryWithCapacity:allowedKeys.count];
@@ -273,6 +284,7 @@ static void reachabilityHandler(
       message[key] = rawMessage[key];
     }
   }
+  // why are we copying before returning?
   return message.count ? [message copy] : nil;
 }
 

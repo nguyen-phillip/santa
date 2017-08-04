@@ -150,6 +150,21 @@
   return pendingEvents;
 }
 
+- (NSArray *)eventsMatchingSHA256:(NSString *)sha256 {
+  NSMutableArray *events = [[NSMutableArray alloc] init];
+
+  [self inDatabase:^(FMDatabase *db) {
+    FMResultSet *rs = [db executeQuery:@"SELECT * FROM events WHERE filesha256=?", sha256];
+    while ([rs next]) {
+      SNTStoredEvent *se = [self eventFromResultSet:rs];
+      if (se) [events addObject:se];
+    }
+    [rs close];
+  }];
+
+  return events;
+}
+
 - (SNTStoredEvent *)eventFromResultSet:(FMResultSet *)rs {
   NSData *eventData = [rs dataForColumn:@"eventdata"];
   if (!eventData) return nil;

@@ -84,7 +84,7 @@ void logMessage(LogLevel level, FILE *destination, NSString *format, ...) {
         break;
     }
 
-    asl_log(client, NULL, syslogLevel, "%s %s: %s", levelName, binaryName, [s UTF8String]);
+    asl_log(client, NULL, syslogLevel, "%s %s (verbose): %s", levelName, binaryName, [s UTF8String]);
   } else {
     [s appendString:@"\n"];
     size_t len = [s lengthOfBytesUsingEncoding:NSUTF8StringEncoding];

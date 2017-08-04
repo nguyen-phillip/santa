@@ -46,6 +46,11 @@
 
   SNTRule *rule = [self.ruleTable ruleForBinarySHA256:cd.sha256
                                     certificateSHA256:cd.certSHA256];
+
+  LOGI(@"#### SNTPolicyProcessor -- decisionForFileInfo sha256=%s\n", [cd.sha256 cString]);
+  LOGI(@"#### SNTPolicyProcessor -- rule: %@", rule);
+  LOGI(@"#### SNTPolicyProcessor -- fileInfo.path = %@", fileInfo.path);
+
   if (rule) {
     switch (rule.type) {
       case SNTRuleTypeBinary:
@@ -111,6 +116,7 @@
 - (SNTCachedDecision *)decisionForFilePath:(NSString *)filePath
                                 fileSHA256:(NSString *)fileSHA256
                          certificateSHA256:(NSString *)certificateSHA256 {
+  LOGI(@"#### SNTPolicyProcessor decisionForFilePath:%@ SHA256:%@", filePath, fileSHA256);
   SNTFileInfo *fileInfo;
   if (filePath) {
     NSError *error;
