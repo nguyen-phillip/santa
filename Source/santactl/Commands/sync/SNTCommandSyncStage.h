@@ -57,6 +57,14 @@
 - (nullable NSMutableURLRequest *)requestWithDictionary:(nullable NSDictionary *)dictionary;
 
 /**
+ Creates an NSMutableURLRequest pointing at the URL for this stage and containing the passed in
+ JSON-encoded data.
+
+ @param requestBody The data to POST to the server.
+ */
+- (nullable NSMutableURLRequest *)requestWithJSONData:(nullable NSData *)requestBody;
+
+/**
   Perform the passed in request and attempt to parse the response as JSON into a dictionary.
 
   @param request The request to perform

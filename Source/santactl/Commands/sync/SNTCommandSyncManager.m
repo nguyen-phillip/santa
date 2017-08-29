@@ -139,24 +139,14 @@ static void reachabilityHandler(
   }
 }
 
-- (void)postBundleEventsToSyncServer:(NSArray<SNTStoredEvent *> *)events {
+- (void)postEventsToSyncServer:(NSArray<SNTStoredEvent *> *)events fromBundle:(BOOL)fromBundle {
   SNTCommandSyncState *syncState = [self createSyncState];
-  syncState.eventBatchSize = self.eventBatchSize;
+  if (fromBundle) syncState.eventBatchSize = self.eventBatchSize;
   SNTCommandSyncEventUpload *p = [[SNTCommandSyncEventUpload alloc] initWithState:syncState];
   if (events && [p uploadEvents:events]) {
-    LOGD(@"Bundle events upload complete");
+    LOGD(@"Events upload complete");
   } else {
-    LOGE(@"Bundle events upload failed");
-  }
-}
-
-- (void)postEventToSyncServer:(SNTStoredEvent *)event {
-  SNTCommandSyncEventUpload *p = [[SNTCommandSyncEventUpload alloc]
-                                     initWithState:[self createSyncState]];
-  if (event && [p uploadEvents:@[event]]) {
-    LOGD(@"Event upload complete");
-  } else {
-    LOGE(@"Event upload failed");
+    LOGE(@"Events upload failed");
   }
 }
 

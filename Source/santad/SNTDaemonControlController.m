@@ -96,11 +96,11 @@ double watchdogRAMPeak = 0;
   reply([[SNTDatabaseController eventTable] pendingEventsCount]);
 }
 
-- (void)databaseEventsPending:(void (^)(NSArray *events))reply {
+- (void)databaseEventsPending:(void (^)(NSArray<SNTStoredEventJSON *> *events))reply {
   reply([[SNTDatabaseController eventTable] pendingEvents]);
 }
 
-- (void)databaseRemoveEventsWithIDs:(NSArray *)ids {
+- (void)databaseRemoveEventsWithIDs:(NSArray<NSNumber *> *)ids {
   [[SNTDatabaseController eventTable] deleteEventsWithIds:ids];
 }
 
@@ -288,7 +288,7 @@ double watchdogRAMPeak = 0;
     STRONGIFY(self);
     if (needRelatedEvents) {
       [eventTable addStoredEvents:events];
-      [self.syncdQueue addBundleEvents:events];
+      [self.syncdQueue addEvents:events fromBundle:YES];
     }
   }];
 }

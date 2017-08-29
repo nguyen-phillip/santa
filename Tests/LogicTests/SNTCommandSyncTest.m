@@ -244,8 +244,11 @@
 
   NSData *eventData = [self dataFromFixture:@"sync_eventupload_input_basic.plist"];
   NSArray *events = [NSKeyedUnarchiver unarchiveObjectWithData:eventData];
-
-  OCMStub([self.daemonConnRop databaseEventsPending:([OCMArg invokeBlockWithArgs:events, nil])]);
+  NSMutableArray<SNTStoredEventJSON *> *jsonEvents = [NSMutableArray array];
+  for (SNTStoredEvent *event in events) {
+    [jsonEvents addObject:[[SNTStoredEventJSON alloc] initWithStoredEvent:event]];
+  }
+  OCMStub([self.daemonConnRop databaseEventsPending:([OCMArg invokeBlockWithArgs:jsonEvents, nil])]);
 
   [self stubRequestBody:nil response:nil error:nil validateBlock:^BOOL(NSURLRequest *req) {
     NSDictionary *requestDict = [self dictFromRequest:req];
@@ -298,7 +301,11 @@
 
   NSData *eventData = [self dataFromFixture:@"sync_eventupload_input_quarantine.plist"];
   NSArray *events = [NSKeyedUnarchiver unarchiveObjectWithData:eventData];
-  OCMStub([self.daemonConnRop databaseEventsPending:([OCMArg invokeBlockWithArgs:events, nil])]);
+  NSMutableArray<SNTStoredEventJSON *> *jsonEvents = [NSMutableArray array];
+  for (SNTStoredEvent *event in events) {
+    [jsonEvents addObject:[[SNTStoredEventJSON alloc] initWithStoredEvent:event]];
+  }
+  OCMStub([self.daemonConnRop databaseEventsPending:([OCMArg invokeBlockWithArgs:jsonEvents, nil])]);
 
   [self stubRequestBody:nil response:nil error:nil validateBlock:^BOOL(NSURLRequest *req) {
     NSDictionary *requestDict = [self dictFromRequest:req];
@@ -330,7 +337,11 @@
 
   NSData *eventData = [self dataFromFixture:@"sync_eventupload_input_basic.plist"];
   NSArray *events = [NSKeyedUnarchiver unarchiveObjectWithData:eventData];
-  OCMStub([self.daemonConnRop databaseEventsPending:([OCMArg invokeBlockWithArgs:events, nil])]);
+  NSMutableArray<SNTStoredEventJSON *> *jsonEvents = [NSMutableArray array];
+  for (SNTStoredEvent *event in events) {
+    [jsonEvents addObject:[[SNTStoredEventJSON alloc] initWithStoredEvent:event]];
+  }
+  OCMStub([self.daemonConnRop databaseEventsPending:([OCMArg invokeBlockWithArgs:jsonEvents, nil])]);
 
   __block int requestCount = 0;
 

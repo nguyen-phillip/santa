@@ -23,6 +23,7 @@
 
 @class SNTRule;
 @class SNTStoredEvent;
+@class SNTStoredEventJSON;
 @class SNTXPCConnection;
 
 ///
@@ -45,8 +46,8 @@
                   cleanSlate:(BOOL)cleanSlate
                        reply:(void (^)(NSError *error))reply;
 - (void)databaseEventCount:(void (^)(int64_t count))reply;
-- (void)databaseEventsPending:(void (^)(NSArray *events))reply;
-- (void)databaseRemoveEventsWithIDs:(NSArray *)ids;
+- (void)databaseEventsPending:(void (^)(NSArray<SNTStoredEventJSON *> *events))reply;
+- (void)databaseRemoveEventsWithIDs:(NSArray<NSNumber *> *)ids;
 - (void)databaseRuleForBinarySHA256:(NSString *)binarySHA256
                   certificateSHA256:(NSString *)certificateSHA256
                               reply:(void (^)(SNTRule *))reply;

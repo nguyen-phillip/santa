@@ -35,7 +35,7 @@
     // Clean-up: Find events where the bundle details might not be strings and update them.
     FMResultSet *rs = [db executeQuery:@"SELECT * FROM events"];
     while ([rs next]) {
-      SNTStoredEvent *se = [self eventFromResultSet:rs];
+      SNTStoredEvent *se = [self legacyEventFromResultSet:rs];
       if (!se) continue;
 
       Class NSStringClass = [NSString class];
@@ -77,6 +77,21 @@
     newVersion = 3;
   }
 
+  if (version < 4) {
+    // Clean-up: Update all events so that eventdata is JSON blob instead of NSKeyedArchiver blob.
+    FMResultSet *rs = [db executeQuery:@"SELECT * FROM events"];
+    while ([rs next]) {
+      SNTStoredEvent *se = [self legacyEventFromResultSet:rs];
+      if (!se) continue;
+      NSData *jsonData = [se jsonData];
+      if (!jsonData) continue;
+      NSNumber *idx = [rs objectForColumnName:@"idx"];
+      [db executeUpdate:@"UPDATE events SET eventdata=? WHERE idx=?", jsonData, idx];
+    }
+    [rs close];
+    newVersion = 4;
+  }
+
   return newVersion;
 }
 
@@ -95,23 +110,18 @@
         !event.occurrenceDate ||
         !event.decision) continue;
 
-    NSData *eventData;
-    @try {
-      eventData = [NSKeyedArchiver archivedDataWithRootObject:event];
-    } @catch (NSException *exception) {
-      continue;
-    }
-    eventsData[eventData] = event;
+    NSData *jsonData = [event jsonData];
+    eventsData[jsonData] = event;
   }
 
   __block BOOL success = NO;
   [self inTransaction:^(FMDatabase *db, BOOL *rollback) {
-    [eventsData enumerateKeysAndObjectsUsingBlock:^(NSData * eventData,
-                                                    SNTStoredEvent * event,
+    [eventsData enumerateKeysAndObjectsUsingBlock:^(NSData *jsonData,
+                                                    SNTStoredEvent *event,
                                                     BOOL *stop) {
       success = [db executeUpdate:@"INSERT INTO 'events' (idx, filesha256, eventdata)"
                     @"VALUES (?, ?, ?)",
-                    event.idx, event.fileSHA256, eventData];
+                    event.idx, event.fileSHA256, jsonData];
       if (!success) *stop = YES;
     }];
   }];
@@ -122,23 +132,23 @@
 #pragma mark Querying/Retreiving
 
 - (NSUInteger)pendingEventsCount {
-  __block NSUInteger eventsPending = 0;
+  __block NSUInteger count = 0;
   [self inDatabase:^(FMDatabase *db) {
-    eventsPending = [db intForQuery:@"SELECT COUNT(*) FROM events"];
+    count = [db intForQuery:@"SELECT COUNT(*) FROM events"];
   }];
-  return eventsPending;
+  return count;
 }
 
-- (NSArray *)pendingEvents {
-  NSMutableArray *pendingEvents = [[NSMutableArray alloc] init];
+- (NSArray<SNTStoredEventJSON *> *)pendingEvents {
+  NSMutableArray<SNTStoredEventJSON *> *result = [NSMutableArray array];
 
   [self inDatabase:^(FMDatabase *db) {
     FMResultSet *rs = [db executeQuery:@"SELECT * FROM events"];
 
     while ([rs next]) {
-      id obj = [self eventFromResultSet:rs];
-      if (obj) {
-        [pendingEvents addObject:obj];
+      SNTStoredEventJSON *event = [self eventFromResultSet:rs];
+      if (event) {
+        [result addObject:event];
       } else {
         [db executeUpdate:@"DELETE FROM events WHERE idx=?", [rs objectForColumnName:@"idx"]];
       }
@@ -147,10 +157,11 @@
     [rs close];
   }];
 
-  return pendingEvents;
+  return result.copy;
 }
 
-- (SNTStoredEvent *)eventFromResultSet:(FMResultSet *)rs {
+// For event tables with schema version <= 3, extract the SNTStoredEvent from the the result set.
+- (SNTStoredEvent *)legacyEventFromResultSet:(FMResultSet *)rs {
   NSData *eventData = [rs dataForColumn:@"eventdata"];
   if (!eventData) return nil;
 
@@ -165,6 +176,14 @@
   return event;
 }
 
+// For event tables with schema version >= 4, extract the JSON event data from the result set.
+- (SNTStoredEventJSON *)eventFromResultSet:(FMResultSet *)rs {
+  NSData *jsonData = [rs dataForColumn:@"eventdata"];
+  if (!jsonData) return nil;
+  NSNumber *index = @((uint32_t)[rs intForColumn:@"idx"]);
+  return [[SNTStoredEventJSON alloc] initWithIndex:index data:jsonData];
+}
+
 #pragma mark Deleting
 
 - (void)deleteEventWithId:(NSNumber *)index {
@@ -173,7 +192,7 @@
   }];
 }
 
-- (void)deleteEventsWithIds:(NSArray *)indexes {
+- (void)deleteEventsWithIds:(NSArray<NSNumber *> *)indexes {
   for (NSNumber *index in indexes) {
     [self deleteEventWithId:index];
   }

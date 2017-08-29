@@ -18,6 +18,7 @@
 
 @class SNTNotificationMessage;
 @class SNTStoredEvent;
+@class SNTStoredEventJSON;
 
 ///
 /// Responsible for managing the event table.
@@ -43,9 +44,9 @@
 ///
 ///  Retrieves all events in the database
 ///
-///  @return NSArray of SNTStoredEvent's
+///  @return NSArray of SNTStoredEventJSON
 ///
-- (NSArray *)pendingEvents;
+- (NSArray<SNTStoredEventJSON *> *)pendingEvents;
 
 ///
 ///  Retrieves number of events in database without fetching every event.
@@ -66,6 +67,6 @@
 ///
 ///  @param indexes an array of event IDs.
 ///
-- (void)deleteEventsWithIds:(NSArray *)indexes;
+- (void)deleteEventsWithIds:(NSArray<NSNumber *> *)indexes;
 
 @end

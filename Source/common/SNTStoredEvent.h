@@ -16,6 +16,46 @@
 
 #import "SNTCommonEnums.h"
 
+@class MOLCertificate;
+
+// List of string constants used as keys for JSON encoding SNTStoredEvent.
+extern NSString *const kFileSHA256;
+extern NSString *const kFilePath;
+extern NSString *const kFileName;
+extern NSString *const kExecutingUser;
+extern NSString *const kExecutionTime;
+extern NSString *const kDecision;
+extern NSString *const kLoggedInUsers;
+extern NSString *const kCurrentSessions;
+extern NSString *const kFileBundleID;
+extern NSString *const kFileBundlePath;
+extern NSString *const kFileBundleExecutableRelPath;
+extern NSString *const kFileBundleName;
+extern NSString *const kFileBundleVersion;
+extern NSString *const kFileBundleShortVersionString;
+extern NSString *const kFileBundleHash;
+extern NSString *const kFileBundleHashMilliseconds;
+extern NSString *const kFileBundleBinaryCount;
+extern NSString *const kPID;
+extern NSString *const kPPID;
+extern NSString *const kParentName;
+extern NSString *const kSigningChain;
+extern NSString *const kCertSHA256;
+extern NSString *const kCertCN;
+extern NSString *const kCertOrg;
+extern NSString *const kCertOU;
+extern NSString *const kCertValidFrom;
+extern NSString *const kCertValidUntil;
+extern NSString *const kQuarantineDataURL;
+extern NSString *const kQuarantineRefererURL;
+extern NSString *const kQuarantineTimestamp;
+extern NSString *const kQuarantineAgentBundleID;
+
+///
+///  Given a SNTEventState, returns a human-readable string description.
+///
+extern NSString *NSStringFromSNTEventState(SNTEventState state);
+
 ///
 ///  Represents an event stored in the database.
 ///
@@ -93,7 +133,7 @@
 ///  If the executed file was signed, this is an NSArray of MOLCertificate's
 ///  representing the signing chain.
 ///
-@property NSArray *signingChain;
+@property NSArray<MOLCertificate *> *signingChain;
 
 ///
 ///  The user who executed the binary.
@@ -113,12 +153,12 @@
 ///
 ///  NSArray of logged in users when the decision was made.
 ///
-@property NSArray *loggedInUsers;
+@property NSArray<NSString *> *loggedInUsers;
 
 ///
 ///  NSArray of sessions when the decision was made (e.g. nobody@console, nobody@ttys000).
 ///
-@property NSArray *currentSessions;
+@property NSArray<NSString *> *currentSessions;
 
 ///
 ///  The process ID of the binary being executed.
@@ -142,5 +182,39 @@
 @property NSString *quarantineRefererURL;
 @property NSDate *quarantineTimestamp;
 @property NSString *quarantineAgentBundleID;
+
+///
+///  Return an NSData object containing a JSON digest representation of the stored event.
+///
+- (NSData *)jsonData;
+
+@end
+
+///
+///  This temporary object is used only to return JSON event data paired with a identifying index
+///  from SNTEventTable's pendingEvents method.
+///
+@interface SNTStoredEventJSON : NSObject<NSSecureCoding>
+
+///
+///  The index for the event, stored separately from the JSON data.  This index is used to later
+///  delete the stored event from the event table after it has been processed.
+///
+@property(nonatomic, readonly) NSNumber *index;
+
+///
+///  A digested JSON-encoded representation of a SNTStoredEvent.
+///
+@property(nonatomic, readonly) NSData *jsonData;
+
+///
+///  This is the designated initializer.
+///
+- (instancetype)initWithIndex:(NSNumber *)index data:(NSData *)data;
+
+///
+///  Create a SNTStoredEventJSON object from a SNTStoredEvent.
+///
+- (instancetype)initWithStoredEvent:(SNTStoredEvent *)event;
 
 @end

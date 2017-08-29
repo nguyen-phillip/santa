@@ -35,26 +35,44 @@
 
 - (BOOL)sync {
   dispatch_semaphore_t sema = dispatch_semaphore_create(0);
-  [[self.daemonConn remoteObjectProxy] databaseEventsPending:^(NSArray *events) {
-    if (events.count) {
-      [self uploadEvents:events];
-    }
-    dispatch_semaphore_signal(sema);
-  }];
+  [[self.daemonConn remoteObjectProxy]
+      databaseEventsPending:^(NSArray<SNTStoredEventJSON *> *events) {
+        if (events.count) {
+          [self uploadJSONEvents:events];
+        }
+        dispatch_semaphore_signal(sema);
+      }];
   return (dispatch_semaphore_wait(sema, DISPATCH_TIME_FOREVER) == 0);
 }
 
-- (BOOL)uploadEvents:(NSArray *)events {
-  NSMutableArray *uploadEvents = [[NSMutableArray alloc] init];
+// Manually create and return a JSON dictionary of the form "{ kEvents : [ event1, event2, ... ] }"
+// where event1, event2, ... are items in the jsonEvents array.
+- (NSData *)jsonDictionaryForEvents:(NSArray<NSData *> *)jsonEvents {
+  NSMutableString *result = [NSMutableString string];
+  [result appendFormat:@"{\"%@\":[", kEvents];
+  BOOL prevItem = NO;
+  for (NSData *jsonEvent in jsonEvents) {
+    if (prevItem) [result appendString:@","];
+    [result appendString:[[NSString alloc] initWithData:jsonEvent encoding:NSUTF8StringEncoding]];
+    prevItem = YES;
+  }
+  [result appendString:@"]}"];
+  return [result dataUsingEncoding:NSUTF8StringEncoding];
+}
 
-  NSMutableSet *eventIds = [NSMutableSet setWithCapacity:events.count];
-  for (SNTStoredEvent *event in events) {
-    [uploadEvents addObject:[self dictionaryForEvent:event]];
-    if (event.idx) [eventIds addObject:event.idx];
+// Uploads an array of SNTStoredEventJSON to the server
+- (BOOL)uploadJSONEvents:(NSArray<SNTStoredEventJSON *> *)events {
+  NSMutableArray<NSData *> *uploadEvents = [[NSMutableArray alloc] init];
+
+  NSMutableSet<NSNumber *> *eventIds = [NSMutableSet setWithCapacity:events.count];
+  for (SNTStoredEventJSON *event in events) {
+    [uploadEvents addObject:event.jsonData];
+    if (event.index) [eventIds addObject:event.index];
     if (uploadEvents.count >= self.syncState.eventBatchSize) break;
   }
 
-  NSDictionary *r = [self performRequest:[self requestWithDictionary:@{ kEvents: uploadEvents }]];
+  NSData *requestBody = [self jsonDictionaryForEvents:uploadEvents];
+  NSDictionary *r = [self performRequest:[self requestWithJSONData:requestBody]];
   if (!r) return NO;
 
   // A list of bundle hashes that require their related binary events to be uploaded.		
@@ -69,81 +87,20 @@
   if (uploadEvents.count < events.count) {
     NSRange nextEventsRange = NSMakeRange(uploadEvents.count, events.count - uploadEvents.count);
     NSArray *nextEvents = [events subarrayWithRange:nextEventsRange];
-    return [self uploadEvents:nextEvents];
+    return [self uploadJSONEvents:nextEvents];
   }
 
   return YES;
 }
 
-- (NSDictionary *)dictionaryForEvent:(SNTStoredEvent *)event {
-#define ADDKEY(dict, key, value) if (value) dict[key] = value
-  NSMutableDictionary *newEvent = [NSMutableDictionary dictionary];
-
-  ADDKEY(newEvent, kFileSHA256, event.fileSHA256);
-  ADDKEY(newEvent, kFilePath, [event.filePath stringByDeletingLastPathComponent]);
-  ADDKEY(newEvent, kFileName, [event.filePath lastPathComponent]);
-  ADDKEY(newEvent, kExecutingUser, event.executingUser);
-  ADDKEY(newEvent, kExecutionTime, @([event.occurrenceDate timeIntervalSince1970]));
-  ADDKEY(newEvent, kLoggedInUsers, event.loggedInUsers);
-  ADDKEY(newEvent, kCurrentSessions, event.currentSessions);
-
-  switch (event.decision) {
-    case SNTEventStateAllowUnknown: ADDKEY(newEvent, kDecision, kDecisionAllowUnknown); break;
-    case SNTEventStateAllowBinary: ADDKEY(newEvent, kDecision, kDecisionAllowBinary); break;
-    case SNTEventStateAllowCertificate:
-      ADDKEY(newEvent, kDecision, kDecisionAllowCertificate);
-      break;
-    case SNTEventStateAllowScope: ADDKEY(newEvent, kDecision, kDecisionAllowScope); break;
-    case SNTEventStateBlockUnknown: ADDKEY(newEvent, kDecision, kDecisionBlockUnknown); break;
-    case SNTEventStateBlockBinary: ADDKEY(newEvent, kDecision, kDecisionBlockBinary); break;
-    case SNTEventStateBlockCertificate:
-      ADDKEY(newEvent, kDecision, kDecisionBlockCertificate);
-      break;
-    case SNTEventStateBlockScope: ADDKEY(newEvent, kDecision, kDecisionBlockScope); break;
-    case SNTEventStateBundleBinary:
-      ADDKEY(newEvent, kDecision, kDecisionBundleBinary);
-      [newEvent removeObjectForKey:kExecutionTime];
-      break;
-    default: ADDKEY(newEvent, kDecision, kDecisionUnknown);
+// Uploads an array of SNTStoredEvent to the server, by first converting each stored event to
+// an instance of SNTStoredEventJSON, then calling uploadJSONEvents:
+- (BOOL)uploadEvents:(NSArray<SNTStoredEvent *> *)events {
+  NSMutableArray<SNTStoredEventJSON *> *jsonEvents = [NSMutableArray array];
+  for (SNTStoredEvent *event in events) {
+    [jsonEvents addObject:[[SNTStoredEventJSON alloc] initWithStoredEvent:event]];
   }
-
-  ADDKEY(newEvent, kFileBundleID, event.fileBundleID);
-  ADDKEY(newEvent, kFileBundlePath, event.fileBundlePath);
-  ADDKEY(newEvent, kFileBundleExecutableRelPath, event.fileBundleExecutableRelPath);
-  ADDKEY(newEvent, kFileBundleName, event.fileBundleName);
-  ADDKEY(newEvent, kFileBundleVersion, event.fileBundleVersion);
-  ADDKEY(newEvent, kFileBundleShortVersionString, event.fileBundleVersionString);
-  ADDKEY(newEvent, kFileBundleHash, event.fileBundleHash);
-  ADDKEY(newEvent, kFileBundleHashMilliseconds, event.fileBundleHashMilliseconds);
-  ADDKEY(newEvent, kFileBundleBinaryCount, event.fileBundleBinaryCount);
-
-  ADDKEY(newEvent, kPID, event.pid);
-  ADDKEY(newEvent, kPPID, event.ppid);
-  ADDKEY(newEvent, kParentName, event.parentName);
-
-  ADDKEY(newEvent, kQuarantineDataURL, event.quarantineDataURL);
-  ADDKEY(newEvent, kQuarantineRefererURL, event.quarantineRefererURL);
-  ADDKEY(newEvent, kQuarantineTimestamp, @([event.quarantineTimestamp timeIntervalSince1970]));
-  ADDKEY(newEvent, kQuarantineAgentBundleID, event.quarantineAgentBundleID);
-
-  NSMutableArray *signingChain = [NSMutableArray arrayWithCapacity:event.signingChain.count];
-  for (NSUInteger i = 0; i < event.signingChain.count; ++i) {
-    MOLCertificate *cert = [event.signingChain objectAtIndex:i];
-
-    NSMutableDictionary *certDict = [NSMutableDictionary dictionary];
-    ADDKEY(certDict, kCertSHA256, cert.SHA256);
-    ADDKEY(certDict, kCertCN, cert.commonName);
-    ADDKEY(certDict, kCertOrg, cert.orgName);
-    ADDKEY(certDict, kCertOU, cert.orgUnit);
-    ADDKEY(certDict, kCertValidFrom, @([cert.validFrom timeIntervalSince1970]));
-    ADDKEY(certDict, kCertValidUntil, @([cert.validUntil timeIntervalSince1970]));
-
-    [signingChain addObject:certDict];
-  }
-  newEvent[kSigningChain] = signingChain;
-
-  return newEvent;
-#undef ADDKEY
+  return [self uploadJSONEvents:jsonEvents];
 }
 
 @end

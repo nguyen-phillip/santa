@@ -68,13 +68,16 @@
   SNTStoredEvent *event = [self createTestEvent];
   [self.sut addStoredEvent:event];
 
-  SNTStoredEvent *storedEvent = [self.sut pendingEvents].firstObject;
-  XCTAssertNotNil(storedEvent);
-  XCTAssertEqualObjects(event.filePath, storedEvent.filePath);
-  XCTAssertEqualObjects(event.signingChain, storedEvent.signingChain);
-  XCTAssertEqualObjects(event.loggedInUsers, storedEvent.loggedInUsers);
-  XCTAssertEqualObjects(event.occurrenceDate, storedEvent.occurrenceDate);
-  XCTAssertEqual(event.decision, storedEvent.decision);
+  SNTStoredEventJSON *jsonEvent = [self.sut pendingEvents].firstObject;
+  XCTAssertNotNil(jsonEvent);
+  NSDictionary *d = [NSJSONSerialization JSONObjectWithData:jsonEvent.jsonData
+                                                    options:0
+                                                      error:NULL];
+  NSString *path = [NSString pathWithComponents:@[d[kFilePath], d[kFileName]]];
+  XCTAssertEqualObjects(event.filePath, path);
+  XCTAssertEqualObjects(event.loggedInUsers, d[kLoggedInUsers]);
+  XCTAssertEqualObjects(d[kExecutionTime], @([event.occurrenceDate timeIntervalSince1970]));
+  XCTAssertEqualObjects(d[kDecision], NSStringFromSNTEventState(event.decision));
 }
 
 - (void)testDeleteEventWithId {
@@ -94,7 +97,7 @@
   }
 
   // Fetch those events (so we have the IDs)
-  NSArray *pendingEvents = [self.sut pendingEvents];
+  NSArray<SNTStoredEventJSON *> *pendingEvents = [self.sut pendingEvents];
 
   // Ensure enough events were added and retrieved
   XCTAssertEqual(self.sut.pendingEventsCount, 50);
@@ -102,8 +105,8 @@
 
   // Collect the IDs
   NSMutableArray *eventIds = [NSMutableArray array];
-  for (SNTStoredEvent *event in pendingEvents) {
-    [eventIds addObject:event.idx];
+  for (SNTStoredEventJSON *event in pendingEvents) {
+    [eventIds addObject:event.index];
   }
 
   // Now delete them
@@ -118,10 +121,8 @@
     [db executeUpdate:@"INSERT INTO events (filesha256) VALUES ('deadbeef')"];
   }];
 
-  NSArray *events = [self.sut pendingEvents];
-  for (SNTStoredEvent *event in events) {
-    if ([event.fileSHA256 isEqual:@"deadbeef"]) XCTFail("Received bad event");
-  }
+  NSArray<SNTStoredEventJSON *> *events = [self.sut pendingEvents];
+  if (events.count) XCTFail("Received bad event");
 
   [self.dbq inDatabase:^(FMDatabase *db) {
     FMResultSet *rs = [db executeQuery:@"SELECT * FROM events WHERE filesha256='deadbeef'"];

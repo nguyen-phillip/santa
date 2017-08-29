@@ -27,7 +27,7 @@
 + (NSXPCInterface *)controlInterface {
   NSXPCInterface *r = [NSXPCInterface interfaceWithProtocol:@protocol(SNTDaemonControlXPC)];
 
-  [r setClasses:[NSSet setWithObjects:[NSArray class], [SNTStoredEvent class], nil]
+  [r setClasses:[NSSet setWithObjects:[NSArray class], [SNTStoredEventJSON class], nil]
         forSelector:@selector(databaseEventsPending:)
       argumentIndex:0
             ofReply:YES];

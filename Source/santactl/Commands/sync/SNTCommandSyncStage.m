@@ -60,7 +60,10 @@
       return nil;
     }
   }
+  return [self requestWithJSONData:requestBody];
+}
 
+- (NSMutableURLRequest *)requestWithJSONData:(NSData *)requestBody {
   NSMutableURLRequest *req = [[NSMutableURLRequest alloc] initWithURL:[self stageURL]];
   [req setHTTPMethod:@"POST"];
   [req setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
